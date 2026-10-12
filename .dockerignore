@@ -1,0 +1,7 @@
+.git/
+kiosk_local.db*
+*.log
+__pycache__/
+customer_photos/*.jpg
+web_demo/guest_snaps/
+web_demo/kiosk_web.db

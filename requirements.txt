@@ -1,0 +1,18 @@
+# Smart Pizza Shop Kiosk System
+# Offline-first face-recognition kiosk with TTS greeting + SQLite sync.
+#
+# Run:
+#   pip install -r requirements.txt
+#   python app.py [--no-camera] [--sync-url URL] [--tolerance 0.5]
+#
+# Folders:
+#   known_faces/      -> put `CustomerName.jpg` files here (one face per file)
+#   customer_photos/  -> auto-saved snapshots of new customers
+
+opencv-contrib-python>=4.8.0  # contrib = Haar + LBPH face recognizer (no Visual Studio needed)
+pyttsx3>=2.90
+requests>=2.31.0
+numpy>=1.24.0
+# face-recognition is optional (needs Visual Studio C++ / dlib on Windows).
+# If present, the app uses it (tolerance=0.5). If absent, it uses OpenCV LBPH.
+# face-recognition>=1.3.0

@@ -1,0 +1,6 @@
+streamlit>=1.32.0
+streamlit-webrtc>=0.47.0
+# NOTE: headless *contrib* build — plain opencv-python-headless has NO cv2.face
+# (LBPH recognizer), so it would break face matching on the server.
+opencv-contrib-python-headless>=4.8.0
+numpy>=1.24.0

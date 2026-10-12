@@ -1,0 +1,19 @@
+# Local runtime data — never push to GitHub
+kiosk_local.db*
+*.log
+__pycache__/
+customer_photos/*.jpg
+customer_photos/*.txt
+# Enrollment faces are personal biometric data — keep them local
+known_faces/*.jpg
+known_faces/*.jpeg
+known_faces/*.png
+# Web demo runtime data (same reason)
+web_demo/known_faces/*.jpg
+web_demo/known_faces/*.jpeg
+web_demo/known_faces/*.png
+web_demo/guest_snaps/
+web_demo/kiosk_web.db
+# Keep folders + guides
+!known_faces/README.txt
+!customer_photos/README.txt
