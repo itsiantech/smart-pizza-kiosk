@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pizza Globe — Shop & Live Kiosk</title>
+<style>
+  :root{
+    --bg:#0f0f12; --card:#1a1a20; --card2:#23232c; --line:#2e2e38;
+    --txt:#f4f2ec; --mut:#a7a7b3; --brand:#ff5a3c; --brand2:#ffb03c;
+    --green:#22c55e; --red:#ef4444; --r:16px;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:"Segoe UI",Inter,Arial,sans-serif;background:var(--bg);color:var(--txt)}
+  header{background:linear-gradient(135deg,#1c0f0a,#2b1210 60%,#1a1a20);padding:14px 20px;
+    display:flex;align-items:center;gap:14px;flex-wrap:wrap;position:sticky;top:0;z-index:50;
+    border-bottom:1px solid var(--line)}
+  header h1{margin:0;font-size:22px}
+  header h1 span{background:linear-gradient(90deg,var(--brand),var(--brand2));
+    -webkit-background-clip:text;background-clip:text;color:transparent}
+  nav{display:flex;gap:8px;margin-left:auto;flex-wrap:wrap}
+  nav button{background:#26262f;color:var(--txt);border:1px solid var(--line);
+    border-radius:999px;padding:9px 18px;font-size:15px;cursor:pointer}
+  nav button.active{background:linear-gradient(90deg,var(--brand),var(--brand2));border:0;color:#fff}
+  main{max-width:1120px;margin:0 auto;padding:18px}
+  .view{display:none}.view.active{display:block}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:16px;margin-bottom:16px}
+  .hint{font-size:13px;color:var(--mut)}
+  button{background:#2c2c36;color:var(--txt);border:1px solid var(--line);border-radius:10px;
+    padding:10px 16px;font-size:15px;cursor:pointer}
+  button:disabled{opacity:.45;cursor:default}
+  button.primary{background:linear-gradient(90deg,var(--brand),var(--brand2));border:0;color:#fff;font-weight:600}
+  button.danger{background:transparent;border-color:var(--red);color:var(--red)}
+  input[type=text],input[type=number],select,textarea{width:100%;padding:10px;background:#101015;
+    border:1px solid var(--line);border-radius:10px;color:var(--txt);font-size:15px;margin:4px 0}
+  textarea{resize:vertical;min-height:64px}
+  label{font-size:13px;color:var(--mut)}
+  /* shop */
+  #catPills{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}
+  #catPills button{border-radius:999px}
+  #catPills button.active{background:linear-gradient(90deg,var(--brand),var(--brand2));border:0;color:#fff}
+  #grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:14px}
+  .prod{background:var(--card);border:1px solid var(--line);border-radius:var(--r);overflow:hidden;
+    display:flex;flex-direction:column;transition:transform .15s}
+  .prod:hover{transform:translateY(-3px)}
+  .prod img{width:100%;height:150px;object-fit:cover;background:#000}
+  .prod .emoji{font-size:64px;text-align:center;padding:18px 0 6px}
+  .prod .body{padding:12px;display:flex;flex-direction:column;gap:6px;flex:1}
+  .prod h3{margin:0;font-size:17px}
+  .prod p{margin:0;font-size:13px;color:var(--mut);min-height:32px}
+  .price{font-size:18px;font-weight:700;color:var(--brand2)}
+  .prod .row{display:flex;gap:6px}
+  .prod select,.prod input[type=number]{margin:0;padding:7px}
+  .prod input[type=number]{width:60px}
+  /* cart */
+  #cartBar{position:sticky;bottom:12px;background:rgba(26,26,32,.97);border:1px solid var(--brand);
+    border-radius:var(--r);padding:12px 16px;display:none;box-shadow:0 8px 30px rgba(0,0,0,.5)}
+  #cartBar.show{display:block}
+  /* kiosk */
+  #stage{position:relative;width:100%;background:#000;border-radius:var(--r);overflow:hidden}
+  #video,#overlay{width:100%;display:block}
+  #video{transform:scaleX(-1)}
+  #overlay{position:absolute;top:0;left:0}
+  #log{height:140px;overflow-y:auto;background:#0a0a0e;color:#4ade80;font-family:Consolas,monospace;
+    font-size:13px;border-radius:10px;padding:10px;border:1px solid var(--line)}
+  #log .say{color:#ffd54a}
+  .pill{display:inline-block;background:#2c2c36;border-radius:20px;padding:3px 12px;margin:2px;font-size:14px}
+  table{width:100%;border-collapse:collapse;font-size:14px}
+  th,td{border-bottom:1px solid var(--line);padding:8px 6px;text-align:left;vertical-align:top}
+  .thumb{width:52px;height:52px;object-fit:cover;border-radius:10px}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  @media(max-width:860px){.grid2{grid-template-columns:1fr}}
+  .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  #status{font-weight:600}
+</style>
+</head>
+<body>
+<header>
+  <h1>🍕 Pizza <span>Globe</span></h1>
+  <nav>
+    <button data-v="shop" class="active">🏠 Shop</button>
+    <button data-v="kiosk">📷 Kiosk</button>
+    <button data-v="admin">🛠 Admin</button>
+    <button id="btnSound">🔇 Sound</button>
+  </nav>
+</header>
+<main>
+  <!-- ============ SHOP ============ -->
+  <section id="view-shop" class="view active">
+    <div class="card">
+      <div id="catPills"></div>
+      <div id="grid"></div>
+    </div>
+    <div id="cartBar">
+      <div id="cartLines"></div>
+      <div class="row" style="margin-top:8px">
+        <input type="text" id="custName" placeholder="Your name (or scan face in Kiosk tab)" style="max-width:280px">
+        <b id="cartTotal"></b>
+        <button id="btnCheckout" class="primary" style="margin-left:auto">✅ Checkout</button>
+      </div>
+    </div>
+    <div class="card"><b>📋 Recent orders</b><div id="shopOrders"></div></div>
+  </section>
+
+  <!-- ============ KIOSK ============ -->
+  <section id="view-kiosk" class="view">
+    <div class="card"><div id="status">⏳ Loading face models…</div>
+      <div class="hint">First load downloads ~6 MB of models (cached after).</div></div>
+    <div class="card">
+      <div id="stage"><video id="video" autoplay muted playsinline></video><canvas id="overlay"></canvas></div>
+      <div class="row" style="margin-top:10px">
+        <button id="btnCam" class="primary">▶ Start camera</button>
+      </div>
+    </div>
+    <div class="grid2">
+      <div class="card"><b>📝 Enroll (new person)</b>
+        <div class="hint">Type name → Capture shots (look left/right slowly) → Save.</div>
+        <input type="text" id="enName" placeholder="e.g. Fahad">
+        <div class="row" style="margin-top:8px">
+          <button id="btnShots">📸 Shots (<span id="shotN">0</span>/8)</button>
+          <button id="btnSave" class="primary" disabled>Save</button>
+        </div>
+        <div id="knownList" style="margin-top:8px"></div>
+      </div>
+      <div class="card"><b>📢 Kiosk log</b><div id="log"></div></div>
+    </div>
+  </section>
+
+  <!-- ============ ADMIN ============ -->
+  <section id="view-admin" class="view">
+    <div class="card" id="pinGate">
+      <b>🔐 Admin PIN</b>
+      <div class="row"><input type="text" id="pinIn" placeholder="Enter PIN" style="max-width:200px">
+      <button id="btnPin" class="primary">Unlock</button></div>
+      <div class="hint">Default PIN: 1234</div>
+    </div>
+    <div id="adminPanel" style="display:none">
+      <div class="card"><b>➕ Add / edit product</b>
+        <input type="hidden" id="fId">
+        <div class="grid2">
+          <div><label>Title</label><input type="text" id="fTitle" placeholder="e.g. Chicken Feast"></div>
+          <div><label>Category</label><div class="row"><select id="fCat"></select>
+            <input type="text" id="fCatNew" placeholder="+ new" style="max-width:140px"></div></div>
+          <div><label>Price ($)</label><input type="number" id="fPrice" step="0.01" min="0" placeholder="9.99"></div>
+          <div><label>Emoji (if no photo)</label><input type="text" id="fEmoji" placeholder="🍕"></div>
+        </div>
+        <label>Description</label><textarea id="fDesc" placeholder="Tasty …"></textarea>
+        <label>Sizes (Name:extra, comma separated — e.g. Regular:0, Medium:2, Large:4)</label>
+        <input type="text" id="fSizes" placeholder="Regular:0, Large:3">
+        <label>Photo</label>
+        <div class="row"><input type="file" id="fPhoto" accept="image/*"><img id="fPrev" class="thumb" alt=""></div>
+        <div class="row" style="margin-top:8px">
+          <button id="btnPSave" class="primary">💾 Save product</button>
+          <button id="btnPClear">Clear</button>
+        </div>
+      </div>
+      <div class="card"><b>📦 Product list</b><div style="overflow-x:auto"><table>
+        <thead><tr><th></th><th>Title</th><th>Category</th><th>Price</th><th>Sizes</th><th></th></tr></thead>
+        <tbody id="prodRows"></tbody></table></div></div>
+      <div class="card"><b>🏷 Categories</b>
+        <div class="row"><input type="text" id="catNew" placeholder="New category" style="max-width:220px">
+        <button id="btnCatAdd">Add</button></div>
+        <div id="catList" style="margin-top:8px"></div></div>
+      <div class="card"><b>📋 All orders</b><div id="adminOrders"></div>
+        <button id="btnWipe" class="danger">🗑 Clear orders</button></div>
+    </div>
+  </section>
+</main>
+
+<script src="./face-api.min.js"></script>
+<script>
+"use strict";
+/* ================= store ================= */
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const load = (k, d) => { try { const v = JSON.parse(localStorage.getItem(k)); return v ?? d; } catch { return d; } };
+const save = () => {
+  localStorage.setItem("pg_products", JSON.stringify(products));
+  localStorage.setItem("pg_cats", JSON.stringify(cats));
+  localStorage.setItem("pg_people", JSON.stringify(people));
+  localStorage.setItem("pg_orders", JSON.stringify(orders));
+};
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+
+let cats = load("pg_cats", null);
+let products = load("pg_products", null);
+if (!cats || !products) { // seed demo catalog once
+  cats = ["Pizza", "Sides", "Drinks"];
+  products = [
+    { id: uid(), title: "Margherita", desc: "Classic cheese & tomato", price: 8.99, category: "Pizza", emoji: "🍕", img: "", sizes: [{ name: "Regular", delta: 0 }, { name: "Large", delta: 3 }] },
+    { id: uid(), title: "Pepperoni", desc: "Loaded pepperoni & mozzarella", price: 10.99, category: "Pizza", emoji: "🍕", img: "", sizes: [{ name: "Regular", delta: 0 }, { name: "Large", delta: 3 }] },
+    { id: uid(), title: "Veggie", desc: "Garden fresh veggies", price: 9.49, category: "Pizza", emoji: "🫑", img: "", sizes: [{ name: "Regular", delta: 0 }, { name: "Large", delta: 3 }] },
+    { id: uid(), title: "Garlic Bread", desc: "Crispy & buttery", price: 4.49, category: "Sides", emoji: "🥖", img: "", sizes: [{ name: "Regular", delta: 0 }] },
+    { id: uid(), title: "Coke", desc: "Chilled 250ml", price: 1.99, category: "Drinks", emoji: "🥤", img: "", sizes: [{ name: "Regular", delta: 0 }] }
+  ];
+  save();
+}
+let people = load("pg_people", []);
+let orders = load("pg_orders", []);
+let cart = {};            // pid -> {size, qty}
+let activeCat = "All";
+let lastSeen = null;
+
+/* ================= voice ================= */
+let soundOn = false;
+function speak(text) {
+  klog("🔊 " + text, true);
+  if (!soundOn || !("speechSynthesis" in window)) return;
+  try {
+    const u = new SpeechSynthesisUtterance(text);
+    const bn = speechSynthesis.getVoices().find(v => (v.lang || "").toLowerCase().startsWith("bn"));
+    if (bn) u.voice = bn;
+    u.rate = 0.95; speechSynthesis.cancel(); speechSynthesis.speak(u);
+  } catch (e) { klog("voice error: " + e); }
+}
+if ("speechSynthesis" in window) speechSynthesis.getVoices();
+$("btnSound").onclick = e => {
+  soundOn = !soundOn;
+  e.target.textContent = soundOn ? "🔊 Sound" : "🔇 Sound";
+  if (soundOn) speak("Pizza Globe ready.");
+};
+function klog(msg, say) {
+  const L = $("log"); if (!L) return;
+  const d = document.createElement("div");
+  if (say) d.className = "say";
+  d.textContent = new Date().toLocaleTimeString() + " " + msg;
+  L.prepend(d);
+  while (L.children.length > 40) L.lastChild.remove();
+}
+
+/* ================= tabs ================= */
+document.querySelectorAll("nav button[data-v]").forEach(b => b.onclick = () => {
+  document.querySelectorAll("nav button[data-v]").forEach(x => x.classList.remove("active"));
+  b.classList.add("active");
+  document.querySelectorAll(".view").forEach(v => v.classList.remove("active"));
+  $("view-" + b.dataset.v).classList.add("active");
+});
+
+/* ================= shop ================= */
+const prod = id => products.find(p => p.id === id);
+function renderCats() {
+  const all = ["All", ...cats];
+  if (!all.includes(activeCat)) activeCat = "All";
+  $("catPills").innerHTML = all.map(c =>
+    `<button data-c="${esc(c)}" class="${c === activeCat ? "active" : ""}">${esc(c)}</button>`).join("");
+  document.querySelectorAll("#catPills button").forEach(b => b.onclick = () => { activeCat = b.dataset.c; renderCats(); renderGrid(); });
+}
+function priceOf(p, size) {
+  const s = (p.sizes || []).find(x => x.name === size);
+  return p.price + (s ? +s.delta || 0 : 0);
+}
+function renderGrid() {
+  const list = products.filter(p => activeCat === "All" || p.category === activeCat);
+  $("grid").innerHTML = list.length ? list.map(p => {
+    const sizes = (p.sizes && p.sizes.length ? p.sizes : [{ name: "Regular", delta: 0 }]);
+    return `<div class="prod">
+      ${p.img ? `<img src="${p.img}" alt="">` : `<div class="emoji">${esc(p.emoji || "🍕")}</div>`}
+      <div class="body"><h3>${esc(p.title)}</h3><p>${esc(p.desc)}</p>
+      <div class="price">$<span id="pr-${p.id}">${priceOf(p, sizes[0].name).toFixed(2)}</span></div>
+      <div class="row"><select id="sz-${p.id}">${sizes.map(s =>
+        `<option>${esc(s.name)}${+s.delta ? " (+$" + (+s.delta).toFixed(2) + ")" : ""}</option>`).join("")}</select>
+      <input type="number" id="qt-${p.id}" value="1" min="1" max="20"></div>
+      <button class="primary" data-add="${p.id}">🛒 Add</button></div></div>`;
+  }).join("") : `<div class="hint">No products in this category yet — add some in Admin.</div>`;
+  list.forEach(p => {
+    $("sz-" + p.id).onchange = e => { $("pr-" + p.id).textContent = priceOf(p, e.target.value).toFixed(2); };
+    document.querySelector(`[data-add="${p.id}"]`).onclick = () => {
+      const size = $("sz-" + p.id).value, qty = Math.max(1, +$("qt-" + p.id).value || 1);
+      const key = p.id + "|" + size;
+      cart[key] = cart[key] || { pid: p.id, size, qty: 0 };
+      cart[key].qty += qty;
+      renderCart();
+    };
+  });
+}
+function cartEntries() { return Object.entries(cart); }
+function cartTotal() {
+  return cartEntries().reduce((s, [, c]) => s + priceOf(prod(c.pid), c.size) * c.qty, 0);
+}
+function renderCart() {
+  const es = cartEntries(), bar = $("cartBar");
+  bar.classList.toggle("show", !!es.length);
+  $("cartLines").innerHTML = es.map(([k, c]) => {
+    const p = prod(c.pid);
+    return `<span class="pill">${esc(p.title)} (${esc(c.size)}) × ${c.qty} — $${(priceOf(p, c.size) * c.qty).toFixed(2)}
+      <a href="#" data-rm="${k}" style="color:#f66">✕</a></span>`;
+  }).join("");
+  $("cartTotal").textContent = "Total: $" + cartTotal().toFixed(2);
+  document.querySelectorAll("[data-rm]").forEach(a => a.onclick = e => { e.preventDefault(); delete cart[a.dataset.rm]; renderCart(); });
+}
+$("btnCheckout").onclick = () => {
+  const es = cartEntries();
+  if (!es.length) return alert("Cart is empty.");
+  const name = ($("custName").value.trim() || lastSeen || "Walk-in");
+  const items = es.map(([, c]) => `${prod(c.pid).title} (${c.size}) x${c.qty}`);
+  const total = cartTotal().toFixed(2);
+  orders.push({ name, items: items.join(", "), total, time: new Date().toLocaleString() });
+  const p = people.find(x => x.name === name);
+  if (p) p.orders.push(items.join(", "));
+  cart = {}; save(); renderCart(); renderShopOrders();
+  const msg = `Order confirmed for ${name}. ${items.join(", ")}. Total ${total} dollars. Dhonnobad.`;
+  speak(msg);
+  alert("✅ " + msg);
+};
+function renderShopOrders() {
+  const last = orders.slice(-5).reverse();
+  $("shopOrders").innerHTML = last.length
+    ? `<table><tr><th>Customer</th><th>Items</th><th>Total</th><th>Time</th></tr>${last.map(o =>
+      `<tr><td>${esc(o.name)}</td><td>${esc(o.items)}</td><td>$${esc(o.total)}</td><td>${esc(o.time || "")}</td></tr>`).join("")}</table>`
+    : `<span class="hint">No orders yet.</span>`;
+}
+
+/* ================= face kiosk (face-api.js) ================= */
+const MODEL_BASES = [
+  "https://raw.githubusercontent.com/justadudewhohacks/face-api.js/master/weights",
+  "https://raw.githack.com/justadudewhohacks/face-api.js/master/weights"
+];
+const MATCH_T = 0.5, COOLDOWN = 15000, UNKNOWN_GAP = 30000;
+const video = $("video"), overlay = $("overlay");
+let scanning = false, lastGreeted = {}, lastUnknown = 0, shotBuf = [], modelsReady = false;
+
+const returningMsg = (n, o) => o
+  ? `${n}, tomake Pizza Globe-e shagotom! Agerbar tumi ${o} order korechile. Shetai abar order korbe, naki notun kichu korbe, janao. Dhonnobad.`
+  : `${n}, tomake Pizza Globe-e shagotom! Aj ki order korbe, amader janao. Dhonnobad.`;
+const NEW_MSG = "Apnake Pizza Globe-e shagotom! Apnar order ki hobe, amader janan.";
+const identify = desc => {
+  let best = null, bestD = MATCH_T;
+  for (const p of people) for (const d of (p.desc || [])) {
+    const dist = faceapi.euclideanDistance(desc, Float32Array.from(d));
+    if (dist < bestD) { bestD = dist; best = p.name; }
+  }
+  return best;
+};
+const lastOrderOf = n => { const p = people.find(x => x.name === n); return p && p.orders.length ? p.orders[p.orders.length - 1] : null; };
+
+async function tick() {
+  if (!scanning || video.readyState < 2) return;
+  const dets = await faceapi.detectAllFaces(
+    video, new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.45 })
+  ).withFaceLandmarks().withFaceDescriptors().catch(() => []);
+  const ctx = overlay.getContext("2d");
+  overlay.width = video.videoWidth; overlay.height = video.videoHeight;
+  ctx.clearRect(0, 0, overlay.width, overlay.height);
+  const now = Date.now();
+  for (const d of dets) {
+    const b = d.detection.box, name = identify(d.descriptor);
+    if (name) {
+      drawBox(ctx, b, name, "#22c55e");
+      lastSeen = name; $("custName").value = name;
+      if (now - (lastGreeted[name] || 0) >= COOLDOWN) {
+        lastGreeted[name] = now;
+        speak(returningMsg(name, lastOrderOf(name)));
+      }
+    } else {
+      drawBox(ctx, b, "New Customer", "#ef4444");
+      if (now - lastUnknown >= UNKNOWN_GAP) {
+        lastUnknown = now;
+        const g = "Guest_" + Math.random().toString(16).slice(2, 8).toUpperCase();
+        people.push({ name: g, desc: [Array.from(d.descriptor)], orders: [] });
+        save(); renderKnown();
+        lastSeen = g; $("custName").value = g;
+        speak(NEW_MSG);
+      }
+    }
+  }
+}
+function drawBox(ctx, b, label, color) {
+  const x = overlay.width - b.x - b.width;
+  ctx.strokeStyle = color; ctx.lineWidth = 3;
+  ctx.strokeRect(x, b.y, b.width, b.height);
+  ctx.fillStyle = color; ctx.font = "bold 20px sans-serif";
+  ctx.fillText(label, x, Math.max(20, b.y - 8));
+}
+$("btnCam").onclick = async () => {
+  if (!modelsReady) return alert("Models still loading — wait for ✅.");
+  try {
+    video.srcObject = await navigator.mediaDevices.getUserMedia({ video: { width: 640 }, audio: false });
+    scanning = true; $("btnCam").textContent = "⏸ Stop";
+    $("btnCam").onclick = () => location.reload();
+    setInterval(tick, 400); klog("camera started");
+  } catch (e) { alert("Camera blocked: " + e.message); }
+};
+$("btnShots").onclick = async () => {
+  shotBuf = []; $("shotN").textContent = "0"; $("btnSave").disabled = true;
+  klog("capturing 8 shots — move head slowly…");
+  for (let i = 0; i < 8; i++) {
+    await new Promise(r => setTimeout(r, 450));
+    if (video.readyState < 2) continue;
+    const dets = await faceapi.detectAllFaces(
+      video, new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.45 })
+    ).withFaceLandmarks().withFaceDescriptors().catch(() => []);
+    if (dets.length) {
+      const best = dets.sort((a, b) => b.detection.score - a.detection.score)[0];
+      shotBuf.push(Array.from(best.descriptor));
+      $("shotN").textContent = shotBuf.length;
+    }
+  }
+  $("btnSave").disabled = !shotBuf.length;
+  klog(`captured ${shotBuf.length}/8 shots`);
+};
+$("btnSave").onclick = () => {
+  const n = $("enName").value.trim();
+  if (!n || !shotBuf.length) return alert("Enter name + capture shots first.");
+  const p = people.find(x => x.name === n);
+  if (p) p.desc.push(...shotBuf); else people.push({ name: n, desc: shotBuf, orders: [] });
+  shotBuf = []; $("shotN").textContent = "0"; $("btnSave").disabled = true;
+  save(); renderKnown();
+  speak(returningMsg(n, null)); klog(`enrolled ${n}`);
+};
+function renderKnown() {
+  $("knownList").innerHTML = people.length
+    ? people.map(p => `<span class="pill">👤 ${esc(p.name)} (${(p.desc || []).length})</span>`).join("")
+    : `<span class="hint">Nobody enrolled yet.</span>`;
+}
+
+/* ================= admin ================= */
+const ADMIN_PIN = "1234";
+$("btnPin").onclick = () => {
+  if ($("pinIn").value.trim() === ADMIN_PIN) {
+    $("pinGate").style.display = "none"; $("adminPanel").style.display = "block";
+    renderAdmin();
+  } else alert("Wrong PIN.");
+};
+const parseSizes = t => String(t || "").split(",").map(s => s.trim()).filter(Boolean).map(s => {
+  const [n, d] = s.split(":").map(x => x.trim());
+  return { name: n || "Regular", delta: parseFloat(d) || 0 };
+});
+let photoData = "";
+$("fPhoto").onchange = e => {
+  const f = e.target.files[0]; if (!f) return;
+  const img = new Image();
+  img.onload = () => {
+    const S = 480, k = Math.min(1, S / Math.max(img.width, img.height));
+    const c = document.createElement("canvas");
+    c.width = img.width * k; c.height = img.height * k;
+    c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+    photoData = c.toDataURL("image/jpeg", 0.8);
+    $("fPrev").src = photoData;
+    URL.revokeObjectURL(img.src);
+  };
+  img.src = URL.createObjectURL(f);
+};
+function fillCats(sel) {
+  $(sel).innerHTML = cats.map(c => `<option>${esc(c)}</option>`).join("");
+}
+function renderAdmin() {
+  fillCats("fCat");
+  $("prodRows").innerHTML = products.map(p => `<tr>
+    <td>${p.img ? `<img class="thumb" src="${p.img}">` : `<span style="font-size:28px">${esc(p.emoji || "🍕")}</span>`}</td>
+    <td><b>${esc(p.title)}</b><br><span class="hint">${esc(p.desc)}</span></td>
+    <td>${esc(p.category)}</td><td>$${(+p.price).toFixed(2)}</td>
+    <td class="hint">${esc((p.sizes || []).map(s => s.name + (s.delta ? "+" + s.delta : "")).join(", "))}</td>
+    <td><button data-edit="${p.id}">✏️</button> <button data-del="${p.id}" class="danger">🗑</button></td></tr>`).join("");
+  document.querySelectorAll("[data-edit]").forEach(b => b.onclick = () => {
+    const p = prod(b.dataset.edit);
+    $("fId").value = p.id; $("fTitle").value = p.title; $("fPrice").value = p.price;
+    $("fDesc").value = p.desc || ""; $("fEmoji").value = p.emoji || "";
+    $("fSizes").value = (p.sizes || []).map(s => `${s.name}:${s.delta}`).join(", ");
+    if (!cats.includes(p.category)) { cats.push(p.category); save(); }
+    fillCats("fCat"); $("fCat").value = p.category;
+    photoData = p.img || ""; $("fPrev").src = photoData;
+    window.scrollTo({ top: 0 });
+  });
+  document.querySelectorAll("[data-del]").forEach(b => b.onclick = () => {
+    if (!confirm("Delete this product?")) return;
+    products = products.filter(p => p.id !== b.dataset.del);
+    save(); renderAdmin(); renderCats(); renderGrid();
+  });
+  $("catList").innerHTML = cats.map(c => {
+    const n = products.filter(p => p.category === c).length;
+    return `<span class="pill">${esc(c)} (${n}) <a href="#" data-cat="${esc(c)}" style="color:#f66">✕</a></span>`;
+  }).join("");
+  document.querySelectorAll("[data-cat]").forEach(a => a.onclick = e => {
+    e.preventDefault();
+    if (products.some(p => p.category === a.dataset.cat)) return alert("Category has products — move/delete them first.");
+    cats = cats.filter(c => c !== a.dataset.cat);
+    save(); renderAdmin(); renderCats(); renderGrid();
+  });
+  $("adminOrders").innerHTML = orders.length
+    ? `<table><tr><th>Customer</th><th>Items</th><th>Total</th><th>Time</th></tr>${orders.slice().reverse().map(o =>
+      `<tr><td>${esc(o.name)}</td><td>${esc(o.items)}</td><td>$${esc(o.total)}</td><td>${esc(o.time || "")}</td></tr>`).join("")}</table>`
+    : `<span class="hint">No orders yet.</span>`;
+}
+$("btnPSave").onclick = () => {
+  const title = $("fTitle").value.trim();
+  const price = parseFloat($("fPrice").value);
+  if (!title || !(price >= 0)) return alert("Title + valid price required.");
+  const cat = $("fCatNew").value.trim() || $("fCat").value || "General";
+  if (!cats.includes(cat)) cats.push(cat);
+  const data = {
+    id: $("fId").value || uid(), title,
+    desc: $("fDesc").value.trim(), price,
+    category: cat, emoji: $("fEmoji").value.trim() || "🍕",
+    img: photoData, sizes: parseSizes($("fSizes").value)
+  };
+  if (data.sizes.length === 0) data.sizes = [{ name: "Regular", delta: 0 }];
+  const i = products.findIndex(p => p.id === data.id);
+  if (i >= 0) products[i] = data; else products.push(data);
+  $("fId").value = ""; photoData = ""; $("fPhoto").value = ""; $("fPrev").src = "";
+  save(); renderAdmin(); renderCats(); renderGrid();
+  alert("✅ Product saved.");
+};
+$("btnPClear").onclick = () => {
+  ["fId", "fTitle", "fPrice", "fDesc", "fEmoji", "fSizes", "fCatNew"].forEach(id => $(id).value = "");
+  photoData = ""; $("fPhoto").value = ""; $("fPrev").src = "";
+};
+$("btnCatAdd").onclick = () => {
+  const c = $("catNew").value.trim();
+  if (!c) return;
+  if (!cats.includes(c)) cats.push(c);
+  $("catNew").value = "";
+  save(); renderAdmin(); renderCats(); renderGrid();
+};
+$("btnWipe").onclick = () => {
+  if (!confirm("Clear ALL orders?")) return;
+  orders = []; save(); renderAdmin(); renderShopOrders();
+};
+
+/* ================= boot ================= */
+(async () => {
+  renderCats(); renderGrid(); renderCart(); renderKnown(); renderShopOrders();
+  try {
+    if (location.protocol === "file:") throw new Error("Open via http(s), not file://");
+    let ok = false, err = null;
+    for (const base of MODEL_BASES) {
+      try {
+        $("status").textContent = "⏳ Loading face models…";
+        await faceapi.nets.tinyFaceDetector.loadFromUri(base);
+        await faceapi.nets.faceLandmark68Net.loadFromUri(base);
+        await faceapi.nets.faceRecognitionNet.loadFromUri(base);
+        ok = true; klog("models loaded"); break;
+      } catch (e) { err = e; }
+    }
+    if (!ok) throw err;
+    modelsReady = true;
+    $("status").textContent = `✅ Ready — ${people.length} known people. Camera works in Kiosk tab.`;
+  } catch (e) {
+    $("status").textContent = "❌ Model load failed: " + e.message;
+  }
+})();
+</script>
+</body>
+</html>
